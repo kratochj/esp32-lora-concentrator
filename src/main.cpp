@@ -7,21 +7,10 @@
 
 // Include required libraries
 #include <SPI.h>
+#include <board_def.h>
 #include <LoRa.h>
 #include <Wire.h>
 #include <Logger.h>
-
-// Define the pins used by the LoRa module
-const int csPin = 5;      // LoRa radio chip select
-const int resetPin = 14;  // LoRa radio reset
-const int irqPin = 2;     // Must be a hardware interrupt pin
-
-// Start LoRa module at local frequency
-// 433E6 for Asia
-// 433E6 for Europe
-// 866E6 for Europe
-// 915E6 for North America
-const long loraFrequency = 433E6;
 
 const Logger::Level logLevel = Logger::VERBOSE;
 
@@ -96,11 +85,7 @@ void onReceive(int packetSize) {
         clientLastActive2 = millis();
     }
 
-    Logger::log(logLevel, "Received message:");
-    Logger::log(logLevel, "  Sender:" + String(sender));
-    Logger::log(logLevel, "  Recipient:" + String(recipient));
-    Logger::log(logLevel, "  Message ID:" + String(incomingMsgId));
-    Logger::log(logLevel, "  Message:" + String(incoming));
+    Serial.println("Received:" + incoming);
 }
 
 
@@ -133,16 +118,17 @@ void getValues() {
 }
 
 void setup() {
-    Serial.begin(9600);
+    Serial.begin(115200);
     while (!Serial);
 
-    // Setup LoRa module
-    LoRa.setPins(csPin, resetPin, irqPin);
+    Logger::setLogLevel(Logger::VERBOSE);
+
+    SPI.begin(CONFIG_CLK, CONFIG_MISO, CONFIG_MOSI, CONFIG_NSS);
+    LoRa.setPins(CONFIG_NSS, CONFIG_RST, CONFIG_DIO0);
 
     Serial.println("LoRa Receiver Test");
 
-
-    if (!LoRa.begin(loraFrequency)) {
+    if (!LoRa.begin(BAND)) {
         Serial.println("Starting LoRa failed!");
         while (1);
     }
@@ -154,21 +140,13 @@ void setup() {
 
 void loop() {
     // Send message to remote 1
-    String outMsg1 = "OLDS_PING#1";
-    outMsg1 = outMsg1 + msgCount;
+    String outMsg1 = "OLDS_PING#";
+    outMsg1 = outMsg1 + millis();
     sendMessage(outMsg1, clientAddress1);
-
-    // Delay 30 seconds for receive
-    delay(30000);
-
-    // Send message to remote 2
-    String outMsg2 = "OLDS_PING#2";
-    outMsg2 = outMsg2 + msgCount;
-    sendMessage(outMsg2, clientAddress2);
 
     // Place LoRa back into Receive Mode
     LoRa.receive();
 
-    // Delay 30 seconds for receive
-    delay(30000);
+    // Delay 3 seconds for receive
+    delay(3000);
 }
